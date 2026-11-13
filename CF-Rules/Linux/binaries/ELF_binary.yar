@@ -14,7 +14,7 @@ rule ELF_binary
     
     condition:
         $elf at 0 and 
-        2 of ($shell, $socket, $connect, $execv)
+        2 of ($shell, $socket, $connect, $execve)
 }
 
 

@@ -1,70 +1,66 @@
 
 import yara
-import os 
+import os
 from datetime import datetime
 from pathlib import Path
 
-rulesfilepath = Path.home() / "Downloads" / "logactions.yar"
-rules = yara.compile(filepath= str(rulesfilepath))
-#path of wherever the yara rules will be placed
-#we can also hard code this
-
-binaries = yara.compile(filepath="./Linux/binaries/ELF_binary.yar")
-
-exploits = yara.compile(filepath="./Linux/exploits/exploit_kits_index.yar")
-
-malware = yara.compile(filepath="./Linux/malware/malware_index.yar")
-
-sus = yara.compile(filepath= './Linux/suspicious_activity/gen_suspicious_strings.yar')
-
-webshells = yara.compile(filepath= "./Linux/webshells/webshells_index.yar")
-
-rootkits = yara.compile(filepath= "./Linux/webshells/webshells_index.yar")
-
+binaries = yara.compile(filepath="./CF-Rules/Linux/binaries/ELF_binary.yar")
+exploits = yara.compile(filepath="./CF-Rules/Linux/exploits/exploit_kits_index.yar")
+malware = yara.compile(filepath="./CF-Rules/Linux/malware/malware_index.yar")
+sus = yara.compile(filepath= './CF-Rules/Linux/suspicious_activity/gen_suspicious_strings.yar')
+webshells = yara.compile(filepath= "./CF-Rules/Linux/webshells/webshells_index.yar")
+logfilepath = Path.home() / "Downloads" / "log.txt"
+time = datetime.now().isoformat()
+#gets the file path, outputs whether or not there is a yara match
+false_positive = 0
 targets = {
     "system_binaries": { 
         "rules": binaries,
-        "paths": ["/usr/bin", "/usr/local/bin", "/bin" ]
+        "paths": ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/usr/local/sbin"]
     },
 
     "exploits": {
         "rules": exploits,
-        "paths": ["/filehere/" ]
+        "paths": ["/tmp", "/var/tmp", "/dev/shm", "/home"]
     },
 
     "malware": {
             "rules": malware,
-            "paths": [ "/filehere/" ]
+            "paths": [ "/usr/bin", "/usr/sbin", "/usr/blueteam", "/usr/local/bin",
+                      "/usr/lib","/usr/lib64", "/tmp", "/var/tmp", "/dev/shm", "/home", "/root",
+                      "/opt", "/etc/cron.d", "/var/spool/cron"]
         },
 
     "sus": {
             "rules": sus,
-            "paths": ["/filehere/"]
+            "paths": ["/tmp", "/var/tmp", "/dev/shm", "/usr/local/bin", "/etc/systemd/system", 
+                      "/etc/cron.d", "/etc/profile.d", "/var/spool/cron", "/home", "/root"]
         },
 
     "webshells": {
             "rules": webshells,
-            "paths": ["/filehere/"]
+            "paths": ["/var/www", "/srv"]
         },
-
-    "rootkits": {
-                "rules": webshells,
-                "paths": ["/filehere/"]
-            }
 }
 
 
-logfilepath = Path.home() / "Downloads" / "log.txt"
-time = datetime.now().isoformat()
-#gets the file path, outputs whether or not there is a yara match
 
 def file_parsing(file, rules, group, log):
      for match in rules.match(filepath=str(file)):
-        log.write(f"[ALERT] {group}: {file} - {match.rule}\n")
+        for string in match.strings:
+            for instance in string.instances:
+
+                log.write(
+                    f"[ALERT] {group}: {file} | "
+                    f"Rule: {match.rule} | "
+                    f"String: {string.identifier} | "
+                    f"Offset: {instance.offset} | "
+                    f"Matched data: {instance.matched_data!r}\n"
+                        )
 
 
 with open(logfilepath, 'w') as f:
-    f.write(time+ "\n")
+    f.write(time + "\n")
     for group, config in targets.items():
         for directory in config["paths"]:
             for path in Path(directory).rglob("*"):
@@ -72,6 +68,6 @@ with open(logfilepath, 'w') as f:
                     try:
                         file_parsing(path,config["rules"],group,f)
 
-                    except yara.Error as e:
+                    except (yara.Error, OSError) as e:
                         f.write(f"Error scanning {path}: {e}\n")
                         continue
