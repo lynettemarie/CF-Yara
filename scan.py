@@ -53,15 +53,16 @@ targets = {
 
 def file_parsing(file, rules, group, log):
      for match in rules.match(filepath=str(file)):
+        m_strings = []
         for string in match.strings:
             for instance in string.instances:
-
+                m_strings.append(
+                    f"{string.identifier}: {instance.matched_data!r}"
+                )
                 log.write(
                     f"[ALERT] {group}: {file} | "
                     f"Rule: {match.rule} | "
-                    f"String: {string.identifier} | "
-                    f"Offset: {instance.offset} | "
-                    f"Matched data: {instance.matched_data!r}\n"
+                    f"Matches: {', '.join(m_strings)}\n"
                         )
 
 
@@ -78,5 +79,5 @@ with open(logfilepath, 'w') as f:
                         f.write(f"Error scanning {path}: {e}\n")
                         continue
 
-f.write(f"END TIME {time} \n")
-f.close()
+    f.write(f"END TIME {time} \n")
+    f.close()

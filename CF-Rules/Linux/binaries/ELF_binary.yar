@@ -5,16 +5,23 @@ rule ELF_binary
         Author = "egg"
         operating_system = "Linux"
 
-    strings:
-        $elf = {7F 45 4C 46}
+     strings:
+        $elf = { 7F 45 4C 46 }
+
         $shell = "/bin/sh" ascii
+        $execve = "execve" ascii
+        $system = "system" ascii
+        $popen = "popen" ascii
+
         $socket = "socket" ascii
         $connect = "connect" ascii
-        $execve = "execve" ascii
-    
+
     condition:
-        $elf at 0 and 
-        2 of ($shell, $socket, $connect, $execve)
+        $elf at 0 and
+        (
+            2 of ($shell, $execve, $system, $popen) and
+            1 of ($socket, $connect)
+        )
 }
 
 
