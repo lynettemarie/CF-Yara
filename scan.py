@@ -56,14 +56,18 @@ def file_parsing(file, rules, group, log):
         m_strings = []
         for string in match.strings:
             for instance in string.instances:
-                m_strings.append(
+                m_strings.add(
                     f"{string.identifier}: {instance.matched_data!r}"
                 )
         log.write(
             f"[ALERT] {group}: {file} | "
             f"Rule: {match.rule} | "
-            f"Matches: {', '.join(m_strings)}\n"
-                )
+            f"Matches: "
+            f"{', '.join(
+                f'{identifier}: {data!r} (Count: {count})'
+                for (identifier, data), count in m_strings.items()
+            )}\n"
+        )
 
 
 with open(logfilepath, 'w') as f:
