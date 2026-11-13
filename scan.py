@@ -59,11 +59,11 @@ def file_parsing(file, rules, group, log):
                 m_strings.append(
                     f"{string.identifier}: {instance.matched_data!r}"
                 )
-                log.write(
-                    f"[ALERT] {group}: {file} | "
-                    f"Rule: {match.rule} | "
-                    f"Matches: {', '.join(m_strings)}\n"
-                        )
+        log.write(
+            f"[ALERT] {group}: {file} | "
+            f"Rule: {match.rule} | "
+            f"Matches: {', '.join(m_strings)}\n"
+                )
 
 
 with open(logfilepath, 'w') as f:
