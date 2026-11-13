@@ -8,7 +8,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 RULES_DIR = BASE_DIR / "CF-Rules" / "Linux"
 
-binaries = yara.compile(filepath=str(RULES_DIR / "binaries/ELF_binary.yar"))
+#binaries = yara.compile(filepath=str(RULES_DIR / "binaries/ELF_binary.yar"))
 exploits = yara.compile(filepath=str(RULES_DIR / "exploits/exploit_kits_index.yar"))
 malware = yara.compile(filepath=str(RULES_DIR / "malware/malware_index.yar"))
 sus = yara.compile(filepath=str(RULES_DIR / "suspicious_activity/gen_suspicious_strings.yar"))
@@ -20,11 +20,12 @@ logfilepath.parent.mkdir(parents=True, exist_ok=True)
 time = datetime.now().isoformat()
 
 targets = {
+    '''
     "system_binaries": { 
         "rules": binaries,
         "paths": ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/usr/local/sbin"]
     },
-
+    '''
     "exploits": {
         "rules": exploits,
         "paths": ["/tmp", "/var/tmp", "/dev/shm", "/home"]
