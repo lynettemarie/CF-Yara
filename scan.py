@@ -17,7 +17,6 @@ webshells = yara.compile(filepath=str(RULES_DIR / "webshells/webshells_index.yar
 logfilepath = Path("/var/log/filewatch/log.txt")
 logfilepath.parent.mkdir(parents=True, exist_ok=True)
 
-time = datetime.now().isoformat()
 
 targets = {
     '''
@@ -51,6 +50,24 @@ targets = {
 }
 
 
+def is_elf(file):
+    try:
+        with open(file, "rb") as f:
+            return f.read(4) == b"\x7fELF"
+    except OSError:
+        return False
+
+def is_script(file):
+    try:
+        with open(file, "rb") as f:
+            header = f.read(256)
+
+        return (
+            file.suffix.lower() in (".sh", ".bash", ".py", ".pl")
+            or header.startswith(b"#!")
+        )
+    except OSError:
+        return False
 
 def file_parsing(file, rules, group, log):
      for match in rules.match(filepath=str(file)):
@@ -59,7 +76,10 @@ def file_parsing(file, rules, group, log):
             for instance in string.instances:
                 key = (string.identifier, instance.matched_data)
                 m_strings[key] = m_strings.get(key, 0) + 1
-                
+
+        if not m_strings:
+            continue
+
         log.write(
             f"[ALERT] {group}: {file} | "
             f"Rule: {match.rule} | "
@@ -71,8 +91,9 @@ def file_parsing(file, rules, group, log):
         )
 
 
+
 with open(logfilepath, 'w') as f:
-    f.write(f"START TIME {time} \n")
+    f.write(f"START TIME {datetime.now().isoformat()} \n")
     for group, config in targets.items():
         for directory in config["paths"]:
             for path in Path(directory).rglob("*"):
@@ -84,5 +105,5 @@ with open(logfilepath, 'w') as f:
                         f.write(f"Error scanning {path}: {e}\n")
                         continue
 
-    f.write(f"END TIME {time} \n")
+    f.write(f"END TIME {datetime.now().isoformat()} \n")
     f.close()
