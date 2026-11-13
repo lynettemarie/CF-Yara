@@ -19,113 +19,45 @@ webshells = yara.compile(filepath=str(RULES_DIR / "webshells/webshells_index.yar
 logfilepath = Path("/var/log/filewatch/log.txt")
 logfilepath.parent.mkdir(parents=True, exist_ok=True)
 
-'''
-targets = {
-    
-    "system_binaries": { 
-        "rules": binaries,
-        "paths": ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/usr/local/sbin"]
-    },
-    
-    "exploits": {
-        "rules": exploits,
-        "paths": ["/tmp", "/var/tmp", "/dev/shm", "/home"]
-    },
-
-    "malware": {
-            "rules": malware,
-            "paths": [ "/usr/bin", "/usr/sbin", "/usr/blueteam", "/usr/local/bin",
-                      "/usr/lib","/usr/lib64", "/tmp", "/var/tmp", "/dev/shm", "/home", "/root",
-                      "/opt", "/etc/cron.d", "/var/spool/cron"]
-        },
-
-    "sus": {
-            "rules": sus,
-            "paths": ["/tmp", "/var/tmp", "/dev/shm", "/usr/local/bin", "/etc/systemd/system", 
-                      "/etc/cron.d", "/etc/profile.d", "/var/spool/cron", "/home", "/root"]
-        },
-
-    "webshells": {
-            "rules": webshells,
-            "paths": ["/var/www", "/srv"]
-        },
-}
-'''
-
 #Layer 1 = runs more frequently on higher priority files
 #Layer 2 = runs periodically to ensure that all other files are ok 
 SCAN_LAYERS = {
      1: { 
         "exploits": {
             "rules": exploits,
-            "paths": [
-                "/tmp",
-                "/var/tmp",
-                "/dev/shm"
-            ]
+            "paths": ["/tmp", "/var/tmp", "/dev/shm"]
         },
 
         "malware": {
             "rules": malware,
-            "paths": [
-                "/tmp",
-                "/var/tmp",
-                "/dev/shm",
-                "/usr/local/bin",
-                "/usr/local/lib",
-                "/usr/blueteam"
-            ]
+            "paths": ["/tmp", "/var/tmp", "/dev/shm", "/usr/local/bin", "/usr/local/lib", "/usr/blueteam"]
         },
 
         "sus": {
             "rules": sus,
-            "paths": [
-                "/tmp",
-                "/var/tmp",
-                "/dev/shm",
-                "/etc/systemd/system",
-                "/etc/cron.d",
-                "/etc/profile.d"
-            ]
+            "paths": ["/tmp", "/var/tmp", "/dev/shm", "/etc/systemd/system", "/etc/cron.d", "/etc/profile.d"]
         },
 
         "webshells": {
             "rules": webshells,
-            "paths": [
-                "/var/www",
-                "/srv"
-            ]
+            "paths": ["/var/www", "/srv"]
         }
     },
 
     2: {
         "exploits": {
             "rules": exploits,
-            "paths": [
-                "/home"
-            ]
+            "paths": ["/home"]
         },
 
         "malware": {
             "rules": malware,
-            "paths": [
-                "/usr/bin",
-                "/usr/sbin",
-                "/usr/lib",
-                "/usr/lib64",
-                "/opt",
-                "/home",
-                "/root"
-            ]
+            "paths": ["/usr/bin", "/usr/sbin", "/usr/lib","/usr/lib64","/opt","/home","/root"]
         },
 
         "sus": {
             "rules": sus,
-            "paths": [
-                "/home",
-                "/root",
-                "/var/spool/cron"
-            ]
+            "paths": ["/home","/root","/var/spool/cron"]
         }
     }
 }
@@ -155,7 +87,9 @@ def file_parsing(file, rules, group, log):
 def scan_layer(layer):
     targets = SCAN_LAYERS[layer]
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(LOG_FILE, 'w') as f:
+    log_file = LOG_FILE.parent / f"layer{layer}_log.txt" #added so that each scan layer has its own file
+
+    with open(log_file, 'w') as f:
         f.write(f"START TIME {datetime.now().isoformat()} & LAYER {layer} \n")
         for group, config in targets.items():
             for directory in config["paths"]:
@@ -163,23 +97,17 @@ def scan_layer(layer):
                 if not base_path.exists():
                     continue
 
-                try:
-                    for path in base_path.rglob("*"):
-                        try:
-                            if not path.is_file():
-                                continue
-                            if path.stat().st_size > MAX_FILE_SIZE:
-                                continue
+                for path in base_path.rglob("*"):
+                    try:
+                        if path.is_file() and path.stat().st_size <= MAX_FILE_SIZE:
                             file_parsing(path,config["rules"],group,f)
-                        except (yara.Error, OSError) as e:
-                            f.write( f"[ERROR] {path}: {e}\n")
-
-                except (yara.Error, OSError) as e:
-                    f.write(f"Error scanning {path}: {e}\n")
-                    continue
+        
+                    except (yara.Error, OSError) as e:
+                        f.write( f"[ERROR] {path}: {e}\n")
 
         f.write(f"END TIME {datetime.now().isoformat()} \n")
-        f.close()
+
+#dividing layers into 2 to automate
 
 parser = argparse.ArgumentParser(
     description="Linux YARA Scanner"
