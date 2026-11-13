@@ -1,12 +1,14 @@
 
 import yara
-import os
+import argparse
 from datetime import datetime
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
 RULES_DIR = BASE_DIR / "CF-Rules" / "Linux"
+LOG_FILE = Path("var/log/filewatch/log.txt")
+MAX_FILE_SIZE = 100 * 1024 * 1024 #Max file sixe is 100 MB to reduce CPU usage
 
 #binaries = yara.compile(filepath=str(RULES_DIR / "binaries/ELF_binary.yar"))
 exploits = yara.compile(filepath=str(RULES_DIR / "exploits/exploit_kits_index.yar"))
@@ -17,14 +19,14 @@ webshells = yara.compile(filepath=str(RULES_DIR / "webshells/webshells_index.yar
 logfilepath = Path("/var/log/filewatch/log.txt")
 logfilepath.parent.mkdir(parents=True, exist_ok=True)
 
-
+'''
 targets = {
-    '''
+    
     "system_binaries": { 
         "rules": binaries,
         "paths": ["/bin", "/sbin", "/usr/bin", "/usr/sbin", "/usr/local/bin", "/usr/local/sbin"]
     },
-    '''
+    
     "exploits": {
         "rules": exploits,
         "paths": ["/tmp", "/var/tmp", "/dev/shm", "/home"]
@@ -48,26 +50,86 @@ targets = {
             "paths": ["/var/www", "/srv"]
         },
 }
+'''
 
+#Layer 1 = runs more frequently on higher priority files
+#Layer 2 = runs periodically to ensure that all other files are ok 
+SCAN_LAYERS = {
+     1: { 
+        "exploits": {
+            "rules": exploits,
+            "paths": [
+                "/tmp",
+                "/var/tmp",
+                "/dev/shm"
+            ]
+        },
 
-def is_elf(file):
-    try:
-        with open(file, "rb") as f:
-            return f.read(4) == b"\x7fELF"
-    except OSError:
-        return False
+        "malware": {
+            "rules": malware,
+            "paths": [
+                "/tmp",
+                "/var/tmp",
+                "/dev/shm",
+                "/usr/local/bin",
+                "/usr/local/lib",
+                "/usr/blueteam"
+            ]
+        },
 
-def is_script(file):
-    try:
-        with open(file, "rb") as f:
-            header = f.read(256)
+        "sus": {
+            "rules": sus,
+            "paths": [
+                "/tmp",
+                "/var/tmp",
+                "/dev/shm",
+                "/etc/systemd/system",
+                "/etc/cron.d",
+                "/etc/profile.d"
+            ]
+        },
 
-        return (
-            file.suffix.lower() in (".sh", ".bash", ".py", ".pl")
-            or header.startswith(b"#!")
-        )
-    except OSError:
-        return False
+        "webshells": {
+            "rules": webshells,
+            "paths": [
+                "/var/www",
+                "/srv"
+            ]
+        }
+    },
+
+    2: {
+        "exploits": {
+            "rules": exploits,
+            "paths": [
+                "/home"
+            ]
+        },
+
+        "malware": {
+            "rules": malware,
+            "paths": [
+                "/usr/bin",
+                "/usr/sbin",
+                "/usr/lib",
+                "/usr/lib64",
+                "/opt",
+                "/home",
+                "/root"
+            ]
+        },
+
+        "sus": {
+            "rules": sus,
+            "paths": [
+                "/home",
+                "/root",
+                "/var/spool/cron"
+            ]
+        }
+    }
+}
+
 
 def file_parsing(file, rules, group, log):
      for match in rules.match(filepath=str(file)):
@@ -90,20 +152,47 @@ def file_parsing(file, rules, group, log):
             )}\n"
         )
 
+def scan_layer(layer):
+    targets = SCAN_LAYERS[layer]
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(LOG_FILE, 'w') as f:
+        f.write(f"START TIME {datetime.now().isoformat()} & LAYER {layer} \n")
+        for group, config in targets.items():
+            for directory in config["paths"]:
+                base_path = Path(directory)
+                if not base_path.exists():
+                    continue
 
+                try:
+                    for path in base_path.rglob("*"):
+                        try:
+                            if not path.is_file():
+                                continue
+                            if path.stat().st_size > MAX_FILE_SIZE:
+                                continue
+                            file_parsing(path,config["rules"],group,f)
+                        except (yara.Error, OSError) as e:
+                            f.write( f"[ERROR] {path}: {e}\n")
 
-with open(logfilepath, 'w') as f:
-    f.write(f"START TIME {datetime.now().isoformat()} \n")
-    for group, config in targets.items():
-        for directory in config["paths"]:
-            for path in Path(directory).rglob("*"):
-                if path.is_file():
-                    try:
-                        file_parsing(path,config["rules"],group,f)
+                except (yara.Error, OSError) as e:
+                    f.write(f"Error scanning {path}: {e}\n")
+                    continue
 
-                    except (yara.Error, OSError) as e:
-                        f.write(f"Error scanning {path}: {e}\n")
-                        continue
+        f.write(f"END TIME {datetime.now().isoformat()} \n")
+        f.close()
 
-    f.write(f"END TIME {datetime.now().isoformat()} \n")
-    f.close()
+parser = argparse.ArgumentParser(
+    description="Linux YARA Scanner"
+)
+
+parser.add_argument(
+    "--layer",
+    type=int,
+    choices=[1, 2],
+    required=True,
+    help="Select scan layer: 1 or 2"
+)
+
+args = parser.parse_args()
+
+scan_layer(args.layer)
