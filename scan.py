@@ -7,7 +7,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 RULES_DIR = BASE_DIR / "CF-Rules" / "Linux"
-LOG_FILE = Path("var/log/filewatch/log.txt")
+LOG_FILE = Path("/var/log/filewatch/")
 MAX_FILE_SIZE = 100 * 1024 * 1024 #Max file sixe is 100 MB to reduce CPU usage
 
 #binaries = yara.compile(filepath=str(RULES_DIR / "binaries/ELF_binary.yar"))
@@ -87,7 +87,7 @@ def file_parsing(file, rules, group, log):
 def scan_layer(layer):
     targets = SCAN_LAYERS[layer]
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    log_file = LOG_FILE.parent / f"layer{layer}_log.txt" #added so that each scan layer has its own file
+    log_file = LOG_FILE / f"layer{layer}_log.txt" #added so that each scan layer has its own file
 
     with open(log_file, 'w') as f:
         f.write(f"START TIME {datetime.now().isoformat()} & LAYER {layer} \n")
