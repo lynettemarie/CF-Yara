@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent
 RULES_DIR = BASE_DIR / "CF-Rules" / "Linux"
 LOG_FILE = Path("/var/log/filewatch/")
 MAX_FILE_SIZE = 100 * 1024 * 1024 #Max file sixe is 100 MB to reduce CPU usage
-
+EXCLUDED_DIR = BASE_DIR
 #binaries = yara.compile(filepath=str(RULES_DIR / "binaries/ELF_binary.yar"))
 exploits = yara.compile(filepath=str(RULES_DIR / "exploits/exploit_kits_index.yar"))
 malware = yara.compile(filepath=str(RULES_DIR / "malware/malware_index.yar"))
@@ -99,6 +99,9 @@ def scan_layer(layer):
 
                 for path in base_path.rglob("*"):
                     try:
+                        if EXCLUDED_DIR in path.parents:
+                            continue
+
                         if path.is_file() and path.stat().st_size <= MAX_FILE_SIZE:
                             file_parsing(path,config["rules"],group,f)
         
