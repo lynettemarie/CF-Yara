@@ -53,12 +53,12 @@ targets = {
 
 def file_parsing(file, rules, group, log):
      for match in rules.match(filepath=str(file)):
-        m_strings = []
+        m_strings = {}
         for string in match.strings:
             for instance in string.instances:
-                m_strings.add(
-                    f"{string.identifier}: {instance.matched_data!r}"
-                )
+                key = (string.identifier, instance.matched_data)
+                m_strings[key] = m_strings.get(key, 0) + 1
+                
         log.write(
             f"[ALERT] {group}: {file} | "
             f"Rule: {match.rule} | "
