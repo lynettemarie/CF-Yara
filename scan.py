@@ -4,15 +4,21 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-binaries = yara.compile(filepath="./CF-Rules/Linux/binaries/ELF_binary.yar")
-exploits = yara.compile(filepath="./CF-Rules/Linux/exploits/exploit_kits_index.yar")
-malware = yara.compile(filepath="./CF-Rules/Linux/malware/malware_index.yar")
-sus = yara.compile(filepath= './CF-Rules/Linux/suspicious_activity/gen_suspicious_strings.yar')
-webshells = yara.compile(filepath= "./CF-Rules/Linux/webshells/webshells_index.yar")
-logfilepath = Path.home() / "Downloads" / "log.txt"
+
+BASE_DIR = Path(__file__).resolve().parent
+RULES_DIR = BASE_DIR / "CF-Rules" / "Linux"
+
+binaries = yara.compile(filepath=str(RULES_DIR / "binaries/ELF_binary.yar"))
+exploits = yara.compile(filepath=str(RULES_DIR / "exploits/exploit_kits_index.yar"))
+malware = yara.compile(filepath=str(RULES_DIR / "malware/malware_index.yar"))
+sus = yara.compile(filepath=str(RULES_DIR / "suspicious_activity/gen_suspicious_strings.yar"))
+webshells = yara.compile(filepath=str(RULES_DIR / "webshells/webshells_index.yar"))
+
+logfilepath = Path("/var/log/filewatch/log.txt")
+logfilepath.parent.mkdir(parents=True, exist_ok=True)
+
 time = datetime.now().isoformat()
-#gets the file path, outputs whether or not there is a yara match
-false_positive = 0
+
 targets = {
     "system_binaries": { 
         "rules": binaries,
@@ -60,7 +66,7 @@ def file_parsing(file, rules, group, log):
 
 
 with open(logfilepath, 'w') as f:
-    f.write(time + "\n")
+    f.write(f"START TIME {time} \n")
     for group, config in targets.items():
         for directory in config["paths"]:
             for path in Path(directory).rglob("*"):
@@ -71,3 +77,6 @@ with open(logfilepath, 'w') as f:
                     except (yara.Error, OSError) as e:
                         f.write(f"Error scanning {path}: {e}\n")
                         continue
+
+f.write(f"END TIME {time} \n")
+f.close()
