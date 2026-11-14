@@ -10,7 +10,7 @@ RULES_DIR = BASE_DIR / "CF-Rules" / "Linux"
 LOG_FILE = Path("/var/log/filewatch/")
 MAX_FILE_SIZE = 100 * 1024 * 1024 #Max file sixe is 100 MB to reduce CPU usage
 EXCLUDED_DIR = BASE_DIR
-#binaries = yara.compile(filepath=str(RULES_DIR / "binaries/ELF_binary.yar"))
+binaries = yara.compile(filepath=str(RULES_DIR / "binaries/binaries_index.yar"))
 exploits = yara.compile(filepath=str(RULES_DIR / "exploits/exploit_kits_index.yar"))
 malware = yara.compile(filepath=str(RULES_DIR / "malware/malware_index.yar"))
 sus = yara.compile(filepath=str(RULES_DIR / "suspicious_activity/gen_suspicious_strings.yar"))
@@ -41,6 +41,11 @@ SCAN_LAYERS = {
         "webshells": {
             "rules": webshells,
             "paths": ["/var/www", "/srv"]
+        },
+
+        "binaries": {
+            "rules": binaries,
+            "paths": ["/tmp", "/var/tmp", "/dev/shm", "/usr/local/bin", "/usr/local/sbin", "/usr/local/lib", "/opt"]
         }
     },
 
@@ -58,6 +63,11 @@ SCAN_LAYERS = {
         "sus": {
             "rules": sus,
             "paths": ["/home","/root","/var/spool/cron"]
+        },
+
+        "binaries": {
+            "rules": binaries,
+            "paths": ["/bin", "/sbin","/usr/bin","/usr/sbin","/usr/lib","/usr/lib64","/lib","/lib64","/home","/root"]
         }
     }
 }
